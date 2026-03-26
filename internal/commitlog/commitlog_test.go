@@ -160,6 +160,95 @@ func TestAppendAndReopen(t *testing.T) {
 	}
 }
 
+func TestReadFrom(t *testing.T) {
+	defer os.RemoveAll("testdata")
+
+	fl, err := Open("testdata/readfrom.log")
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer fl.Close()
+
+	fl.Append([]byte("hello"))
+	fl.Append([]byte("world"))
+	fl.Append([]byte("foo"))
+
+	t.Run("read all from start", func(t *testing.T) {
+		msgs, err := fl.ReadFrom(0, 10)
+		if err != nil {
+			t.Fatalf("ReadFrom() error: %v", err)
+		}
+		if len(msgs) != 3 {
+			t.Fatalf("got %d messages, want 3", len(msgs))
+		}
+		if string(msgs[0].Data) != "hello" || string(msgs[1].Data) != "world" || string(msgs[2].Data) != "foo" {
+			t.Errorf("unexpected data: %v", msgs)
+		}
+	})
+
+	t.Run("read from middle", func(t *testing.T) {
+		msgs, err := fl.ReadFrom(1, 10)
+		if err != nil {
+			t.Fatalf("ReadFrom() error: %v", err)
+		}
+		if len(msgs) != 2 {
+			t.Fatalf("got %d messages, want 2", len(msgs))
+		}
+		if string(msgs[0].Data) != "world" || string(msgs[1].Data) != "foo" {
+			t.Errorf("unexpected data: %v", msgs)
+		}
+		if msgs[0].Offset != 1 {
+			t.Errorf("first message offset = %d, want 1", msgs[0].Offset)
+		}
+	})
+
+	t.Run("max limits results", func(t *testing.T) {
+		msgs, err := fl.ReadFrom(0, 2)
+		if err != nil {
+			t.Fatalf("ReadFrom() error: %v", err)
+		}
+		if len(msgs) != 2 {
+			t.Fatalf("got %d messages, want 2", len(msgs))
+		}
+		if string(msgs[1].Data) != "world" {
+			t.Errorf("second message = %q, want \"world\"", msgs[1].Data)
+		}
+	})
+
+	t.Run("offset out of bounds", func(t *testing.T) {
+		msgs, err := fl.ReadFrom(99, 10)
+		if err != nil {
+			t.Fatalf("ReadFrom() error: %v", err)
+		}
+		if len(msgs) != 0 {
+			t.Errorf("got %d messages, want 0", len(msgs))
+		}
+	})
+
+	t.Run("negative offset", func(t *testing.T) {
+		msgs, err := fl.ReadFrom(-1, 10)
+		if err != nil {
+			t.Fatalf("ReadFrom() error: %v", err)
+		}
+		if len(msgs) != 0 {
+			t.Errorf("got %d messages, want 0", len(msgs))
+		}
+	})
+
+	t.Run("read last entry only", func(t *testing.T) {
+		msgs, err := fl.ReadFrom(2, 1)
+		if err != nil {
+			t.Fatalf("ReadFrom() error: %v", err)
+		}
+		if len(msgs) != 1 {
+			t.Fatalf("got %d messages, want 1", len(msgs))
+		}
+		if string(msgs[0].Data) != "foo" {
+			t.Errorf("got %q, want \"foo\"", msgs[0].Data)
+		}
+	})
+}
+
 func TestClose(t *testing.T) {
 	defer os.RemoveAll("testdata")
 

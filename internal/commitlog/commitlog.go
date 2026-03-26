@@ -24,6 +24,8 @@ type Log interface {
 type FileLog struct {
 	file   *os.File
 	offset int64
+	// store every message position
+	positions map[int64]int64
 }
 
 func Open(path string) (*FileLog, error) {
@@ -53,6 +55,7 @@ func Open(path string) (*FileLog, error) {
 
 	fileSize := fileInfo.Size()
 
+	l.positions = make(map[int64]int64)
 	for {
 		// buffer holding length bytes
 		// [message-length [4bytes] ][ message ]
@@ -99,6 +102,7 @@ func Open(path string) (*FileLog, error) {
 			"nextPos":   dataEnd,
 		})
 
+		l.positions[l.offset] = pos
 		pos = dataEnd
 		l.offset++
 	}
@@ -119,6 +123,8 @@ func (l *FileLog) Append(data []byte) (int64, error) {
 		return 0, err
 	}
 
+	l.positions[l.offset] = pos
+
 	logger.Debug("Appending entry", logrus.Fields{
 		"offset": offset,
 		"pos":    pos,
@@ -138,9 +144,72 @@ func (l *FileLog) Append(data []byte) (int64, error) {
 		return 0, err
 	}
 
+	if err := l.file.Sync(); err != nil {
+		return 0, err
+	}
+
 	l.offset++
 
 	return offset, nil
+}
+
+func (l *FileLog) ReadFrom(offset int64, max int) ([]Message, error) {
+	if offset < 0 || offset >= l.offset {
+		return nil, nil
+	}
+
+	fileInfo, err := l.file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	fileSize := fileInfo.Size()
+
+	maxOffset := offset + int64(max)
+	if maxOffset > l.offset {
+		maxOffset = l.offset
+	}
+
+	messages := make([]Message, 0, maxOffset-offset)
+
+	for i := offset; i < maxOffset; i++ {
+		pos := l.positions[i]
+
+		var lenBuf [4]byte
+		if _, err := l.file.ReadAt(lenBuf[:], pos); err != nil {
+			logger.Debug("Failed to read entry size", logrus.Fields{
+				"offset": i,
+				"pos":    pos,
+				"err":    err,
+			})
+			return messages, nil
+		}
+
+		entrySize := binary.BigEndian.Uint32(lenBuf[:])
+		dataStart := pos + 4
+
+		if dataStart+int64(entrySize) > fileSize {
+			logger.Debug("Corrupted entry detected", logrus.Fields{
+				"offset":    i,
+				"entrySize": entrySize,
+				"fileSize":  fileSize,
+			})
+			return messages, nil
+		}
+
+		data := make([]byte, entrySize)
+		if _, err := l.file.ReadAt(data, dataStart); err != nil {
+			logger.Debug("Failed to read entry data", logrus.Fields{
+				"offset": i,
+				"pos":    dataStart,
+				"err":    err,
+			})
+			return messages, nil
+		}
+
+		messages = append(messages, Message{Offset: i, Data: data})
+	}
+
+	return messages, nil
 }
 
 func (l *FileLog) Close() error {
