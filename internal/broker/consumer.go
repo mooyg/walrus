@@ -15,13 +15,13 @@ type Consumer struct {
 	ch chan ConsumerMessage
 }
 
-func (b *Broker) Subscribe(name string) (*Consumer, error) {
+func (b *Broker) Subscribe(topic string) (*Consumer, error) {
 	b.mu.RLock()
-	t, ok := b.topics[TopicName(name)]
+	t, ok := b.topics[TopicName(topic)]
 	b.mu.RUnlock()
 
 	if !ok {
-		return nil, fmt.Errorf("topic %s not found", name)
+		return nil, fmt.Errorf("topic %s not found", topic)
 	}
 
 	c := &Consumer{
