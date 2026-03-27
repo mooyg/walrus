@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	commitlog "github.com/mooyg/walrus/internal/commitlog"
 	logger "github.com/mooyg/walrus/internal/log"
@@ -12,14 +11,13 @@ import (
 )
 
 type Topic struct {
-	log  *commitlog.FileLog
-	subs map[*Consumer]struct{}
-
-	mu sync.RWMutex
+	log *commitlog.FileLog
 }
 
 type TopicName string
 
+// CreateTopic creates a new topic backed by a commit log on disk.
+// Returns an error if the topic already exists.
 func (b *Broker) CreateTopic(name string) error {
 	tName := TopicName(name)
 
@@ -44,10 +42,7 @@ func (b *Broker) CreateTopic(name string) error {
 		return err
 	}
 
-	b.topics[tName] = &Topic{
-		log:  l,
-		subs: make(map[*Consumer]struct{}),
-	}
+	b.topics[tName] = &Topic{log: l}
 
 	logger.Info("Topic created",
 		logrus.Fields{"topic": name, "path": logPath},
@@ -56,6 +51,7 @@ func (b *Broker) CreateTopic(name string) error {
 	return nil
 }
 
+// DeleteTopic closes the topic's commit log and removes all associated data from disk.
 func (b *Broker) DeleteTopic(name string) error {
 	tName := TopicName(name)
 

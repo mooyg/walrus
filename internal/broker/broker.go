@@ -15,13 +15,14 @@ type Broker struct {
 	baseDir string
 }
 
+// Init scans the base directory and reopens commit logs for any topics that
+// already exist on disk, restoring broker state across restarts.
 func (b *Broker) Init() error {
 	// TODO: allow changing baseDir through arg for now keeping everything in data on-purpose
 	var baseDir string = "data"
 	b.baseDir = baseDir
 
 	entries, err := os.ReadDir(baseDir)
-
 	if err != nil {
 		logger.Error("Failed to read baseDir")
 	}
@@ -32,16 +33,13 @@ func (b *Broker) Init() error {
 		if err != nil {
 			logger.Error("Failed to read commitlog")
 		}
-		t := &Topic{
-			log:  l,
-			subs: make(map[*Consumer]struct{}),
-		}
-		b.topics[TopicName(e.Name())] = t
+		b.topics[TopicName(e.Name())] = &Topic{log: l}
 	}
 
 	return nil
 }
 
+// NewBroker creates a Broker and restores any topics persisted from a previous run.
 func NewBroker() (*Broker, error) {
 	b := &Broker{
 		baseDir: "data",
@@ -55,7 +53,8 @@ func NewBroker() (*Broker, error) {
 	return b, nil
 }
 
-func (b *Broker) Publish(topic string, data []byte) (int64, error) {
+// Produce appends data to the named topic's commit log and returns the assigned offset.
+func (b *Broker) Produce(topic string, data []byte) (int64, error) {
 	b.mu.RLock()
 	t, ok := b.topics[TopicName(topic)]
 	b.mu.RUnlock()
@@ -64,21 +63,5 @@ func (b *Broker) Publish(topic string, data []byte) (int64, error) {
 		return 0, fmt.Errorf("topic %s not found", topic)
 	}
 
-	t.mu.Lock()
-
-	defer t.mu.Unlock()
-	offset, err := t.log.Append(data)
-
-	if err != nil {
-		return 0, err
-	}
-
-	for c := range t.subs {
-		select {
-		case c.ch <- ConsumerMessage{Offset: offset, Data: data}:
-		default:
-		}
-	}
-
-	return offset, nil
+	return t.log.Append(data)
 }
