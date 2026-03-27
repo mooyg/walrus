@@ -2,6 +2,7 @@ package commitlog
 
 import (
 	"os"
+	"sync"
 	"testing"
 
 	logger "github.com/mooyg/walrus/internal/log"
@@ -247,6 +248,132 @@ func TestReadFrom(t *testing.T) {
 			t.Errorf("got %q, want \"foo\"", msgs[0].Data)
 		}
 	})
+}
+
+func TestReadFromAfterReopen(t *testing.T) {
+	defer os.RemoveAll("testdata")
+
+	path := "testdata/readreopen.log"
+
+	fl1, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+
+	fl1.Append([]byte("persisted1"))
+	fl1.Append([]byte("persisted2"))
+	fl1.Close()
+
+	fl2, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer fl2.Close()
+
+	msgs, err := fl2.ReadFrom(0, 10)
+	if err != nil {
+		t.Fatalf("ReadFrom() error: %v", err)
+	}
+	if len(msgs) != 2 {
+		t.Fatalf("got %d messages, want 2", len(msgs))
+	}
+	if string(msgs[0].Data) != "persisted1" || string(msgs[1].Data) != "persisted2" {
+		t.Errorf("unexpected data after reopen: %v", msgs)
+	}
+}
+
+func TestInterleavedAppendAndRead(t *testing.T) {
+	defer os.RemoveAll("testdata")
+
+	fl, err := Open("testdata/interleaved.log")
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer fl.Close()
+
+	fl.Append([]byte("a"))
+	fl.Append([]byte("b"))
+
+	msgs, err := fl.ReadFrom(0, 10)
+	if err != nil {
+		t.Fatalf("ReadFrom() error: %v", err)
+	}
+	if len(msgs) != 2 {
+		t.Fatalf("got %d messages after first batch, want 2", len(msgs))
+	}
+
+	fl.Append([]byte("c"))
+
+	msgs, err = fl.ReadFrom(0, 10)
+	if err != nil {
+		t.Fatalf("ReadFrom() error: %v", err)
+	}
+	if len(msgs) != 3 {
+		t.Fatalf("got %d messages after second append, want 3", len(msgs))
+	}
+	if string(msgs[2].Data) != "c" {
+		t.Errorf("third message = %q, want \"c\"", msgs[2].Data)
+	}
+}
+
+func TestReadFromEmptyLog(t *testing.T) {
+	defer os.RemoveAll("testdata")
+
+	fl, err := Open("testdata/empty.log")
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer fl.Close()
+
+	msgs, err := fl.ReadFrom(0, 10)
+	if err != nil {
+		t.Fatalf("ReadFrom() error: %v", err)
+	}
+	if len(msgs) != 0 {
+		t.Errorf("got %d messages from empty log, want 0", len(msgs))
+	}
+}
+
+func TestConcurrentAppendAndRead(t *testing.T) {
+	defer os.RemoveAll("testdata")
+
+	fl, err := Open("testdata/concurrent.log")
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer fl.Close()
+
+	const numAppends = 50
+
+	for i := 0; i < numAppends; i++ {
+		if _, err := fl.Append([]byte("seed")); err != nil {
+			t.Fatalf("seed Append() failed: %v", err)
+		}
+	}
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := fl.Append([]byte("concurrent-write")); err != nil {
+				t.Errorf("concurrent Append() error: %v", err)
+			}
+		}()
+	}
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := fl.ReadFrom(0, 10); err != nil {
+				t.Errorf("concurrent ReadFrom() error: %v", err)
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 func TestClose(t *testing.T) {
