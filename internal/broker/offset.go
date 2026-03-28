@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"errors"
+
 	commitlog "github.com/mooyg/walrus/internal/commitlog"
 )
 
@@ -101,4 +102,17 @@ func (b *Broker) GetOffset(consumerId, topic string) (int64, error) {
 	}
 
 	return rec.Offset, nil
+}
+
+func (b *Broker) HeadOffset(topic string) (int64, error) {
+	tName := TopicName(topic)
+
+	b.mu.RLock()
+	t, ok := b.topics[tName]
+	b.mu.RUnlock()
+
+	if !ok {
+		return 0, errors.New("topic " + topic + " not found")
+	}
+	return t.log.HeadOffset(), nil
 }

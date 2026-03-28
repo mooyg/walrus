@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package walrus;
+
+option go_package = "github.com/mooyg/walrus/proto";
+
+service BrokerService {
+  rpc Produce(ProduceRequest) returns (ProduceResponse) {}
+
+  rpc Fetch(FetchRequest) returns (FetchResponse) {}
+
+  rpc CommitOffset(CommitOffsetRequest) returns (CommitOffsetResponse) {}
+}
+
+message ProduceRequest {
+  string topic = 1;
+  bytes data = 2;
+}
+
+message ProduceResponse {
+  int64 offset = 1;
+}
+
+message FetchRequest {
+  string topic = 1;
+  int64 offset = 2;
+  int32 limit = 3;
+}
+
+message Record {
+  int64 offset = 1;
+  bytes data = 2;
+}
+
+message FetchResponse {
+  repeated Record records = 1;
+  int64 last_offset = 2;
+}
+
+message CommitOffsetRequest {
+  string consumer_id = 1;
+  string topic = 2;
+  int64 offset = 3;
+}
+
+message CommitOffsetResponse {}

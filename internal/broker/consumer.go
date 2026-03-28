@@ -52,16 +52,3 @@ func (b *Broker) Consume(ctx context.Context, topic string, offset int64, max in
 		}
 	}
 }
-
-func (b *Broker) HeadOffset(topic string) (int64, error) {
-	tName := TopicName(topic)
-
-	b.mu.RLock()
-	t, ok := b.topics[tName]
-	b.mu.RUnlock()
-
-	if !ok {
-		return 0, errors.New("topic " + topic + " not found")
-	}
-	return t.log.HeadOffset(), nil
-}

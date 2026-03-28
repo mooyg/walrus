@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 

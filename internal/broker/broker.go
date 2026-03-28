@@ -1,12 +1,12 @@
 package broker
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"errors"
+
 	commitlog "github.com/mooyg/walrus/internal/commitlog"
 	logger "github.com/mooyg/walrus/internal/log"
 	"github.com/sirupsen/logrus"
