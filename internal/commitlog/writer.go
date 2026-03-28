@@ -16,7 +16,7 @@ type WriteRequest struct {
 }
 
 func (l *FileLog) handleWrite(req WriteRequest) {
-	offset := l.offset
+	offset := l.offset.Load()
 	pos, err := l.file.Seek(0, io.SeekEnd)
 
 	if err != nil {
@@ -39,7 +39,7 @@ func (l *FileLog) handleWrite(req WriteRequest) {
 
 	if err == nil {
 		l.positions[offset] = pos
-		l.offset++
+		l.offset.Add(1)
 	}
 	req.resp <- WriteResponse{offset, err}
 }

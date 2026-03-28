@@ -12,9 +12,10 @@ import (
 )
 
 type Broker struct {
-	mu      sync.RWMutex
-	topics  map[TopicName]*Topic
-	baseDir string
+	mu              sync.RWMutex
+	topics          map[TopicName]*Topic
+	commitedOffsets map[ConsumerID]OffsetRecord
+	baseDir         string
 }
 
 // Init scans the base directory and reopens commit logs for any topics that
@@ -44,14 +45,19 @@ func (b *Broker) Init() error {
 		b.topics[TopicName(e.Name())] = &Topic{log: l}
 	}
 
-	return nil
+	if err := b.ensureConsumersOffsetTopic(); err != nil {
+		return err
+	}
+
+	return b.replayCommittedOffsets()
 }
 
 // NewBroker creates a Broker rooted at baseDir and restores any topics persisted from a previous run.
 func NewBroker(baseDir string) (*Broker, error) {
 	b := &Broker{
-		baseDir: baseDir,
-		topics:  make(map[TopicName]*Topic),
+		baseDir:         baseDir,
+		topics:          make(map[TopicName]*Topic),
+		commitedOffsets: make(map[ConsumerID]OffsetRecord),
 	}
 
 	if err := b.Init(); err != nil {

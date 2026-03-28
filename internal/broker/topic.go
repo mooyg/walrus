@@ -19,6 +19,10 @@ type TopicName string
 // CreateTopic creates a new topic backed by a commit log on disk.
 // Returns an error if the topic already exists.
 func (b *Broker) CreateTopic(name string) error {
+	if name == consumerOffsetTopic {
+		return fmt.Errorf("topic %s is internal and cannot be created", name)
+	}
+
 	tName := TopicName(name)
 
 	b.mu.Lock()
@@ -53,6 +57,10 @@ func (b *Broker) CreateTopic(name string) error {
 
 // DeleteTopic closes the topic's commit log and removes all associated data from disk.
 func (b *Broker) DeleteTopic(name string) error {
+	if name == consumerOffsetTopic {
+		return fmt.Errorf("topic %s is internal and cannot be deleted", name)
+	}
+
 	tName := TopicName(name)
 
 	b.mu.Lock()

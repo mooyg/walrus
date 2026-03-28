@@ -42,8 +42,8 @@ func TestOpen(t *testing.T) {
 			}
 			if err == nil {
 				defer fl.Close()
-				if fl.offset != 0 {
-					t.Errorf("Open() offset = %d, want 0", fl.offset)
+				if fl.offset.Load() != 0 {
+					t.Errorf("Open() offset = %d, want 0", fl.offset.Load())
 				}
 			}
 		})
@@ -117,8 +117,8 @@ func TestReopenPreservesOffset(t *testing.T) {
 	}
 	defer fl2.Close()
 
-	if fl2.offset != 2 {
-		t.Errorf("Open() offset = %d, want 2", fl2.offset)
+	if fl2.offset.Load() != 2 {
+		t.Errorf("Open() offset = %d, want 2", fl2.offset.Load())
 	}
 }
 
@@ -156,8 +156,8 @@ func TestAppendAndReopen(t *testing.T) {
 		t.Errorf("second Append() offset = %d, want 1", offset2)
 	}
 
-	if fl2.offset != 2 {
-		t.Errorf("final offset = %d, want 2", fl2.offset)
+	if fl2.offset.Load() != 2 {
+		t.Errorf("final offset = %d, want 2", fl2.offset.Load())
 	}
 }
 

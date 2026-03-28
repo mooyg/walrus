@@ -23,7 +23,7 @@ type ReadRequest struct {
 func (l *FileLog) handleRead(req ReadRequest) {
 	offset := req.offset
 
-	if offset < 0 || offset >= l.offset {
+	if offset < 0 || offset >= l.offset.Load() {
 		req.resp <- ReadResponse{messages: nil, err: nil}
 		return
 	}
@@ -37,7 +37,7 @@ func (l *FileLog) handleRead(req ReadRequest) {
 
 	fileSize := fileInfo.Size()
 
-	maxOffset := min(offset+int64(req.max), l.offset)
+	maxOffset := min(offset+int64(req.max), l.offset.Load())
 
 	messages := make([]Message, 0, maxOffset-offset)
 

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 
 	logger "github.com/mooyg/walrus/internal/log"
 	"github.com/sirupsen/logrus"
@@ -23,7 +24,7 @@ type Log interface {
 
 type FileLog struct {
 	file   *os.File
-	offset int64
+	offset atomic.Int64
 	// store every message position
 	positions map[int64]int64
 
@@ -106,16 +107,20 @@ func Open(path string) (*FileLog, error) {
 
 	l := &FileLog{
 		file:         f,
-		offset:       nextOffset,
 		positions:    positions,
 		writeChannel: make(chan WriteRequest),
 		readChannel:  make(chan ReadRequest),
 		done:         make(chan struct{}),
 	}
+	l.offset.Store(nextOffset)
 
 	go l.loop()
 
 	return l, nil
+}
+
+func (l *FileLog) HeadOffset() int64 {
+	return l.offset.Load()
 }
 
 func (l *FileLog) loop() {
