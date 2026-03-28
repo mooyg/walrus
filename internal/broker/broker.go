@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"errors"
 	commitlog "github.com/mooyg/walrus/internal/commitlog"
 	logger "github.com/mooyg/walrus/internal/log"
 	"github.com/sirupsen/logrus"
@@ -89,7 +90,7 @@ func (b *Broker) Produce(topic string, data []byte) (int64, error) {
 	b.mu.RUnlock()
 
 	if !ok {
-		return 0, fmt.Errorf("topic %s not found", topic)
+		return 0, errors.New("topic " + topic + " not found")
 	}
 
 	return t.log.Append(data)

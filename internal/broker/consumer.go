@@ -2,7 +2,7 @@ package broker
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 )
 
@@ -29,7 +29,7 @@ func (b *Broker) Consume(ctx context.Context, topic string, offset int64, max in
 		b.mu.RUnlock()
 
 		if !ok {
-			return nil, offset, fmt.Errorf("topic %s not found", topic)
+			return nil, offset, errors.New("topic " + topic + " not found")
 		}
 
 		msgs, err := t.log.ReadFrom(offset, max)
@@ -61,7 +61,7 @@ func (b *Broker) HeadOffset(topic string) (int64, error) {
 	b.mu.RUnlock()
 
 	if !ok {
-		return 0, fmt.Errorf("topic %s not found", topic)
+		return 0, errors.New("topic " + topic + " not found")
 	}
 	return t.log.HeadOffset(), nil
 }

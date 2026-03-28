@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"errors"
 	commitlog "github.com/mooyg/walrus/internal/commitlog"
 	logger "github.com/mooyg/walrus/internal/log"
 	"github.com/sirupsen/logrus"
@@ -20,7 +21,7 @@ type TopicName string
 // Returns an error if the topic already exists.
 func (b *Broker) CreateTopic(name string) error {
 	if name == consumerOffsetTopic {
-		return fmt.Errorf("topic %s is internal and cannot be created", name)
+		return errors.New("topic " + name + " is internal and cannot be created")
 	}
 
 	tName := TopicName(name)
@@ -29,7 +30,7 @@ func (b *Broker) CreateTopic(name string) error {
 	defer b.mu.Unlock()
 
 	if _, exists := b.topics[tName]; exists {
-		return fmt.Errorf("topic %s already exists", name)
+		return errors.New("topic " + name + " already exists")
 	}
 
 	logPath := filepath.Join(b.baseDir, name)
@@ -58,7 +59,7 @@ func (b *Broker) CreateTopic(name string) error {
 // DeleteTopic closes the topic's commit log and removes all associated data from disk.
 func (b *Broker) DeleteTopic(name string) error {
 	if name == consumerOffsetTopic {
-		return fmt.Errorf("topic %s is internal and cannot be deleted", name)
+		return errors.New("topic " + name + " is internal and cannot be deleted")
 	}
 
 	tName := TopicName(name)
@@ -68,7 +69,7 @@ func (b *Broker) DeleteTopic(name string) error {
 
 	t, ok := b.topics[tName]
 	if !ok {
-		return fmt.Errorf("topic %s not found", name)
+		return errors.New("topic " + name + " not found")
 	}
 
 	topicPath := filepath.Join(b.baseDir, name)

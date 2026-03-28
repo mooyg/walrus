@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"errors"
 	commitlog "github.com/mooyg/walrus/internal/commitlog"
 )
 
