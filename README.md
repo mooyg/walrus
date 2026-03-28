@@ -17,8 +17,8 @@ Messages are appended to a binary file. Each entry is a 4-byte length header fol
 
 ## What's next
 
-- [ ] **Broker layer** - sit on top of the commit log, manage named queues, handle lifecycle.
-- [ ] **gRPC API** - Produce and Consume RPCs for external consumers (like the face indexing pipeline).
+- [x] **Broker layer** - sit on top of the commit log, manage named queues, handle lifecycle.
+- [x] **gRPC API** - Produce and Consume RPCs for external consumers (like the face indexing pipeline).
 - [ ] **Metrics** - write/read counts, latency, bytes written. Prometheus or a simple HTTP endpoint.
 - [ ] **Perf work** - benchmark first, then look at batched writes and buffered I/O. Blocked on broker.
 
