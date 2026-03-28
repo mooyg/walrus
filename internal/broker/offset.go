@@ -12,6 +12,11 @@ const consumerOffsetTopic = "__consumer_offsets"
 
 type ConsumerID string
 
+type offsetKey struct {
+	consumerID ConsumerID
+	topic      TopicName
+}
+
 type OffsetRecord struct {
 	ConsumerID ConsumerID `json:"consumer_id"`
 	Topic      TopicName  `json:"topic"`
@@ -56,7 +61,7 @@ func (b *Broker) replayCommittedOffsets() error {
 		if err := json.Unmarshal(m.Data, &rec); err != nil {
 			return fmt.Errorf("replaying committed offsets: %w", err)
 		}
-		b.commitedOffsets[rec.ConsumerID] = rec
+		b.commitedOffsets[offsetKey{rec.ConsumerID, rec.Topic}] = rec
 	}
 
 	return nil
@@ -79,7 +84,7 @@ func (b *Broker) CommitOffset(consumerId, topic string, offset int64) error {
 	}
 
 	b.mu.Lock()
-	b.commitedOffsets[ConsumerID(consumerId)] = rec
+	b.commitedOffsets[offsetKey{ConsumerID(consumerId), TopicName(topic)}] = rec
 	b.mu.Unlock()
 
 	return nil
@@ -87,10 +92,10 @@ func (b *Broker) CommitOffset(consumerId, topic string, offset int64) error {
 
 func (b *Broker) GetOffset(consumerId, topic string) (int64, error) {
 	b.mu.RLock()
-	rec, ok := b.commitedOffsets[ConsumerID(consumerId)]
+	rec, ok := b.commitedOffsets[offsetKey{ConsumerID(consumerId), TopicName(topic)}]
 	b.mu.RUnlock()
 
-	if !ok || rec.Topic != TopicName(topic) {
+	if !ok {
 		return 0, fmt.Errorf("no committed offset for consumer %s on topic %s", consumerId, topic)
 	}
 

@@ -14,7 +14,7 @@ import (
 type Broker struct {
 	mu              sync.RWMutex
 	topics          map[TopicName]*Topic
-	commitedOffsets map[ConsumerID]OffsetRecord
+	commitedOffsets map[offsetKey]OffsetRecord
 	baseDir         string
 }
 
@@ -57,7 +57,7 @@ func NewBroker(baseDir string) (*Broker, error) {
 	b := &Broker{
 		baseDir:         baseDir,
 		topics:          make(map[TopicName]*Topic),
-		commitedOffsets: make(map[ConsumerID]OffsetRecord),
+		commitedOffsets: make(map[offsetKey]OffsetRecord),
 	}
 
 	if err := b.Init(); err != nil {
